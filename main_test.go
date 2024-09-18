@@ -25,19 +25,19 @@ func TestCodeGeneration(t *testing.T) {
 			continue
 		}
 
-		langDir := filepath.Join(testdataDir, entry.Name())
-		code, err := i18ngo.Generate(testValidFS, entry.Name())
+		testName := filepath.Join(testdataDir, entry.Name())
+		got, err := i18ngo.Generate(testValidFS, entry.Name())
 		if err != nil {
 			t.Fatalf("Failed to generate Go code for %s: %v", entry.Name(), err)
 		}
 
-		wantSnapshot := filepath.Join(langDir, "snapshots", "i18n.go")
-		wantBytes, err := os.ReadFile(wantSnapshot)
+		wantSnapshot := filepath.Join(testName, "snapshots", "i18n.go")
+		want, err := os.ReadFile(wantSnapshot)
 		if err != nil {
 			t.Fatalf("Failed to read snapshot file for %s: %v", entry.Name(), err)
 		}
 
-		if diff := cmp.Diff(wantBytes, code); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("Mismatch between generated code and snapshot for %s (-want +got):\n%s", entry.Name(), diff)
 		}
 	}
