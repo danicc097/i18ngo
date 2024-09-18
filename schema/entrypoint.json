@@ -22,6 +22,14 @@
               "type": "string",
               "description": "Type of the variable (Go primitive types)"
             }
+          },
+          "custom_template": {
+            "type": "object",
+            "description": "Override template with a valid go expression. Camel cased variable names are available for expressions.",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Type of the variable (Go primitive types)"
+            }
           }
         }
       }

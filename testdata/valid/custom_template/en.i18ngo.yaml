@@ -1,0 +1,8 @@
+messages:
+  my_greeting:
+    template: "Hello {{ .Name }}! You have {{ .Count }} messages."
+    variables:
+      Name: string
+      Count: int
+    custom_template:
+      "count == 0":  "Hello {{ .Name }}! You have {{ .Count }} message."

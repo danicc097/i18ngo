@@ -1,6 +1,5 @@
 messages:
-  greeting:
-    id: greeting_id
+  my_greeting:
     template: "Hello {{ .Name }}! You are {{ .Age }} years old."
     variables:
       Name: string
