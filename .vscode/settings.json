@@ -1,0 +1,5 @@
+{
+  "yaml.schemas": {
+    "./schema/entrypoint.json": "*.i18ngo.yaml",
+  }
+}

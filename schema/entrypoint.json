@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "template",
+          "variables"
+        ],
+        "properties": {
+          "template": {
+            "type": "string",
+            "description": "Message template with variables, using {{ .VarName }}"
+          },
+          "variables": {
+            "type": "object",
+            "description": "Type definition of variables used in the template field",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Type of the variable (Go primitive types)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "messages"
+  ]
+}
