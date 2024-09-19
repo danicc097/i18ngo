@@ -3,8 +3,6 @@ package translation
 import (
 	"bytes"
 	"html/template"
-
-	"github.com/danicc097/i18ngo"
 )
 
 // Translator is implemented by all language translators.
@@ -20,26 +18,22 @@ const (
 	LangEs Lang = "es"
 )
 
-// NewTranslators initializes all translators based on a initialized loader.
-func NewTranslators(l *i18ngo.LanguageLoader) map[Lang]Translator {
+// NewTranslators initializes all translators.
+func NewTranslators() map[Lang]Translator {
 	return map[Lang]Translator{
-		LangEn: newEn(l),
-		LangEs: newEs(l),
+		LangEn: newEn(),
+		LangEs: newEs(),
 	}
 }
 
-type En struct {
-	l *i18ngo.LanguageLoader
-}
+type en struct{}
 
-func newEn(l *i18ngo.LanguageLoader) *En {
-	return &En{
-		l: l,
-	}
+func newEn() *en {
+	return &en{}
 }
 
 // MyGreeting renders a properly translated message.
-func (t *En) MyGreeting(count int, name string) (string, error) {
+func (t *en) MyGreeting(count int, name string) (string, error) {
 	data := struct {
 		Count int
 		Name  string
@@ -81,18 +75,14 @@ func (t *En) MyGreeting(count int, name string) (string, error) {
 	return buf.String(), nil
 }
 
-type Es struct {
-	l *i18ngo.LanguageLoader
-}
+type es struct{}
 
-func newEs(l *i18ngo.LanguageLoader) *Es {
-	return &Es{
-		l: l,
-	}
+func newEs() *es {
+	return &es{}
 }
 
 // MyGreeting renders a properly translated message.
-func (t *Es) MyGreeting(count int, name string) (string, error) {
+func (t *es) MyGreeting(count int, name string) (string, error) {
 	data := struct {
 		Count int
 		Name  string

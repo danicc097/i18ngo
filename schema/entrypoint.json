@@ -25,7 +25,7 @@
           },
           "custom_templates": {
             "type": "array",
-            "description": "Override template with a valid Go expression. Camel cased variable names are available for expressions. Example: `count == 0`",
+            "description": "Override template with a valid Go expression. Camel cased variable names are available for expressions.\nExample: `count == 0`.\nExpressions will be checked in insertion order.",
             "items": {
               "type": "object",
               "properties": {

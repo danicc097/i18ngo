@@ -168,7 +168,16 @@ func Generate(fsys fs.FS, path string) ([]byte, error) {
 
 	data.Messages = data.Translations[0].Messages // all translations have the same messages
 
-	tmpl, err := template.ParseFS(fsys, "templates/template.go.tpl")
+	funcMap := template.FuncMap{
+		"camelCase": func(s string) string {
+			return snaker.ForceLowerCamelIdentifier(s)
+		},
+		"pascalCase": func(s string) string {
+			return snaker.ForceCamelIdentifier(s)
+		},
+	}
+	tmpl := template.Must(template.New("template.go.tpl").Funcs(funcMap).ParseFS(fsys, "templates/template.go.tpl"))
+
 	if err != nil {
 		return []byte{}, fmt.Errorf("error parsing template: %w", err)
 	}

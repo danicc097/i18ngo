@@ -2,7 +2,6 @@ package i18ngo_test
 
 import (
 	"embed"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,9 +37,9 @@ func TestCodeGeneration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read snapshot file for %s: %v", entry.Name(), err)
 		}
-		fmt.Printf("string(got): %v\n", string(got))
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("Mismatch in %q (-want +got):\n%s", testdataDir+"/"+entry.Name(), diff)
+			t.Log(string(got))
 		}
 	}
 }

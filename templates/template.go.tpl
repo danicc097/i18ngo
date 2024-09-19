@@ -3,8 +3,6 @@ package translation
 import (
 	"bytes"
 	"html/template"
-
-	"github.com/danicc097/i18ngo"
 )
 
 // Translator is implemented by all language translators.
@@ -23,29 +21,25 @@ const (
 {{- end }}
 )
 
-// NewTranslators initializes all translators based on a initialized loader.
-func NewTranslators(l *i18ngo.LanguageLoader) map[Lang]Translator {
+// NewTranslators initializes all translators.
+func NewTranslators() map[Lang]Translator {
 	return map[Lang]Translator{
 {{- range .Langs }}
-		Lang{{.CamelLang}}: new{{.CamelLang}}(l),
+		Lang{{.CamelLang}}: new{{.CamelLang}}(),
 {{- end }}
 	}
 }
 
 {{- range .Translations }}
-type {{.CamelLang}} struct {
-	l *i18ngo.LanguageLoader
-}
+type {{camelCase .CamelLang}} struct {}
 
-func new{{.CamelLang}}(l *i18ngo.LanguageLoader) *{{.CamelLang}} {
-	return &{{.CamelLang}}{
-		l: l,
-	}
+func new{{.CamelLang}}() *{{camelCase .CamelLang}} {
+	return &{{camelCase .CamelLang}}{}
 }
 
 {{- range .Messages }}
 // {{.MethodName}} renders a properly translated message.
-func (t *{{.CamelLang}}) {{.MethodName}}({{.Args}}) (string, error) {
+func (t *{{camelCase .CamelLang}}) {{.MethodName}}({{.Args}}) (string, error) {
 	data := struct {
 	{{- range .Vars }}
 		{{.Name}} {{.Type}}
