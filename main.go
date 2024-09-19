@@ -138,24 +138,32 @@ func Generate(fsys fs.FS, path string) ([]byte, error) {
 			msg := translations.Messages[msgID]
 			methodName := snaker.SnakeToCamel(msgID)
 			vars := []VarData{}
+
+			// TODO: generate variables with interface{} type instead
+			// if var not defined.
+			// Also allow custom imports --> enables e.g. User.Username, User.Gender, etc.
+			// in the future for easier custom_templates.
 			tplVars := make([]string, 0, len(msg.Variables))
+			exprVars := make([]string, 0, len(msg.Variables))
 			for name, typ := range msg.Variables {
 				vars = append(vars, VarData{
-					Name:  snaker.SnakeToCamel(name),
+					Name:  name,
 					Type:  typ,
 					Param: snaker.ForceLowerCamelIdentifier(name),
 				})
-				tplVars = append(tplVars, snaker.ForceLowerCamelIdentifier(name))
+				tplVars = append(tplVars, name)
+				exprVars = append(exprVars, snaker.ForceLowerCamelIdentifier(name))
 			}
 			sort.Slice(vars, func(i, j int) bool {
 				return vars[i].Name < vars[j].Name
 			})
 
 			if err := validator.ValidateTemplate(msg.Template, tplVars); err != nil {
+				return nil, fmt.Errorf("error validating template %q: %w", msg.Template, err)
 			}
 
 			for _, tpl := range msg.CustomTemplates {
-				if err := validator.ValidateCustomExpression(tpl.Expression, tplVars); err != nil {
+				if err := validator.ValidateCustomExpression(tpl.Expression, exprVars); err != nil {
 					return nil, fmt.Errorf("error validating custom template expression %q: %w", tpl.Expression, err)
 				}
 			}

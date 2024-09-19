@@ -1,0 +1,6 @@
+messages:
+  my_greeting:
+    template: "Hello {{ .Differs }}! You are {{ .Age }} years old."
+    variables:
+      Differs: string
+      Age: int

@@ -1,0 +1,1 @@
+error validating translation files: structure mismatch between translation files "testdata/invalid/differing_structure_between_files/en.i18ngo.yaml" and "testdata/invalid/differing_structure_between_files/es.i18ngo.yaml" at .messages.my_greeting.variables.Differs

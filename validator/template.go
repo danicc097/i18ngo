@@ -5,26 +5,41 @@ import (
 	"html/template"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 // ValidateTemplate checks if all variables used inside {{ .MyVar }} exist in the provided variables.
 func ValidateTemplate(tpl string, variables []string) error {
+	errors := []string{}
+
 	if _, err := template.New("").Parse(tpl); err != nil {
-		return fmt.Errorf("invalid template: %w", err)
+		return fmt.Errorf("unparseable template: %w", err)
 	}
 
-	re := regexp.MustCompile(`\{\{\s*\.([a-zA-Z0-9_]*)\s*\}\}`)
-	matches := re.FindAllStringSubmatch(tpl, -1)
+	validRe := regexp.MustCompile(`\{\{\s*\.(\w+)\s*\}\}`)
 
-	for _, match := range matches {
-		if len(match) < 2 {
-			continue // no capture group
-		}
-		varName := match[1]
+	generalRe := regexp.MustCompile(`\{\{[^}]*\}\}`)
+	generalMatches := generalRe.FindAllString(tpl, -1)
 
-		if !slices.Contains(variables, varName) {
-			return fmt.Errorf("unknown variable used in template: %s", varName)
+	errorMatches := regexp.MustCompile(`\{\s*[.]?[^\s][^}]*\}\}`).FindAllString(tpl, -1)
+	for _, errMatch := range errorMatches {
+		if strings.HasPrefix(errMatch, "{{") { // poor mans neg lookahead
+			continue
 		}
+		errors = append(errors, fmt.Sprintf("possible invalid syntax: %s", errMatch))
+	}
+	for _, match := range generalMatches {
+		matches := validRe.FindAllStringSubmatch(match, -1)
+		if len(matches) > 0 {
+			varName := matches[0][1]
+			if !slices.Contains(variables, varName) {
+				errors = append(errors, fmt.Sprintf("unknown variable used in template: %s", varName))
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("invalid template: %s", strings.Join(errors, ", "))
 	}
 
 	return nil
