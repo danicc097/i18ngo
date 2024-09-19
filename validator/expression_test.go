@@ -6,7 +6,7 @@ import (
 	"github.com/danicc097/i18ngo/validator"
 )
 
-func TestValidateCustomTemplate(t *testing.T) {
+func TestValidateCustomExpression(t *testing.T) {
 	tests := []struct {
 		name      string
 		expr      string
@@ -27,7 +27,7 @@ func TestValidateCustomTemplate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validator.ValidateCustomTemplate(tt.expr, tt.variables)
+			err := validator.ValidateCustomExpression(tt.expr, tt.variables)
 			if (err != nil) != tt.shouldErr {
 				t.Errorf("ValidateCustomTemplate() error = %v, wantErr %v", err, tt.shouldErr)
 			}

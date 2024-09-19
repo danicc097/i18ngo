@@ -37,9 +37,10 @@ func ValidateTranslationFiles(fsys fs.FS, path string) error {
 		structures = append(structures, structure)
 	}
 
+	// Compare each file structure with the first one
 	for i := 1; i < len(structures); i++ {
-		if ok := compareMaps(structures[0], structures[i]); !ok {
-			return fmt.Errorf("structure mismatch between translation files")
+		if ok, diffPath := compareMaps(structures[0], structures[i], ""); !ok {
+			return fmt.Errorf("structure mismatch between translation files %q and %q at %s", files[0], files[i], diffPath)
 		}
 	}
 
@@ -61,38 +62,45 @@ func parseYAMLFile(fsys fs.FS, filename string) (anyMap, error) {
 	return content, nil
 }
 
-func compareMaps(map1, map2 anyMap) bool {
+// compareMaps compares two maps recursively, returning false if there is a difference.
+// It also returns the path where the difference occurs.
+func compareMaps(map1, map2 anyMap, currentPath string) (bool, string) {
 	if len(map1) != len(map2) {
-		return false
+		return false, currentPath
 	}
 
 	for key1, val1 := range map1 {
 		val2, exists := map2[key1]
 		if !exists {
-			return false
+			return false, fmt.Sprintf("%s.%s", currentPath, key1)
 		}
 
-		if ok := compareValues(val1, val2); !ok {
-			return false
+		if ok, diffPath := compareValues(val1, val2, fmt.Sprintf("%s.%s", currentPath, key1)); !ok {
+			return false, diffPath
 		}
 	}
 
-	return true
+	return true, ""
 }
 
-func compareValues(val1, val2 interface{}) bool {
+// compareValues compares two values, considering map or slice types, returning false if they differ.
+func compareValues(val1, val2 interface{}, currentPath string) (bool, string) {
 	map1, ok1 := val1.(anyMap)
 	map2, ok2 := val2.(anyMap)
 	if ok1 && ok2 {
-		return compareMaps(map1, map2)
+		return compareMaps(map1, map2, currentPath)
 	}
 
+	// If both are slices, we don't check contents, just ensure both are slices
 	_, ok1 = val1.([]interface{})
 	_, ok2 = val2.([]interface{})
-	if ok1 && ok2 || !ok1 && !ok2 {
-		return true // dont care about values, just that both are either slices or neither are
+	if ok1 && ok2 {
+		return true, "" // Slices are not compared, just their type
 	}
 
-	// types don't match, assume its an error
-	return false
+	if ok1 != ok2 { // One is a slice, the other is not
+		return false, currentPath
+	}
+
+	return true, ""
 }

@@ -138,16 +138,28 @@ func Generate(fsys fs.FS, path string) ([]byte, error) {
 			msg := translations.Messages[msgID]
 			methodName := snaker.SnakeToCamel(msgID)
 			vars := []VarData{}
+			tplVars := make([]string, 0, len(msg.Variables))
 			for name, typ := range msg.Variables {
 				vars = append(vars, VarData{
 					Name:  snaker.SnakeToCamel(name),
 					Type:  typ,
 					Param: snaker.ForceLowerCamelIdentifier(name),
 				})
+				tplVars = append(tplVars, snaker.ForceLowerCamelIdentifier(name))
 			}
 			sort.Slice(vars, func(i, j int) bool {
 				return vars[i].Name < vars[j].Name
 			})
+
+			if err := validator.ValidateTemplate(msg.Template, tplVars); err != nil {
+			}
+
+			for _, tpl := range msg.CustomTemplates {
+				if err := validator.ValidateCustomExpression(tpl.Expression, tplVars); err != nil {
+					return nil, fmt.Errorf("error validating custom template expression %q: %w", tpl.Expression, err)
+				}
+			}
+
 			args := ""
 			for _, v := range vars {
 				args += fmt.Sprintf("%s %s, ", v.Param, v.Type)

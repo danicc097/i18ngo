@@ -5,13 +5,14 @@ import (
 	"testing/fstest"
 
 	"github.com/danicc097/i18ngo/validator"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompareTranslationFiles(t *testing.T) {
 	testCases := []struct {
-		name          string
-		files         map[string]string
-		expectedError bool
+		name      string
+		files     map[string]string
+		wantError string
 	}{
 		{
 			name: "Matching structures",
@@ -33,7 +34,6 @@ func TestCompareTranslationFiles(t *testing.T) {
     custom_templates:
       "count == 0": "b"`,
 			},
-			expectedError: false,
 		},
 		{
 			name: "Mismatched structures",
@@ -55,7 +55,7 @@ func TestCompareTranslationFiles(t *testing.T) {
     custom_templates:
       "count == 10000": "b"`,
 			},
-			expectedError: true,
+			wantError: `structure mismatch between translation files "data/en.i18ngo.yaml" and "data/es.i18ngo.yaml" at .messages.my_greeting.custom_templates.count == 0`,
 		},
 	}
 
@@ -69,8 +69,10 @@ func TestCompareTranslationFiles(t *testing.T) {
 			}
 
 			err := validator.ValidateTranslationFiles(fsys, "data")
-			if (err != nil) != tc.expectedError {
-				t.Errorf("CompareTranslationFiles() error = %v, expectedError %v", err, tc.expectedError)
+			if tc.wantError != "" {
+				require.EqualError(t, err, tc.wantError)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

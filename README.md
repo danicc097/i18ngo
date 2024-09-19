@@ -27,10 +27,8 @@ The above will generate code you can use in html templates with
 Initialize all translators at startup from the generated code:
 
 ```go
-loader := i18ngo.NewLanguageLoader(fsys, path)
 // assuming your codegen was saved to an i18ngen package
-tt := i18ngen.NewTranslators(loader)
-
+tt := i18ngen.NewTranslators()
 
 // lang may come from context, etc.
 t := tt[lang]

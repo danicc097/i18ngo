@@ -8,7 +8,7 @@ import (
 	"slices"
 )
 
-func ValidateCustomTemplate(expression string, variables []string) error {
+func ValidateCustomExpression(expression string, variables []string) error {
 	fs := token.NewFileSet()
 	expr, err := parser.ParseExprFrom(fs, "", expression, 0)
 	if err != nil {
