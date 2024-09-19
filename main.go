@@ -19,11 +19,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// CustomTemplate defines the structure for each custom template entry.
+type CustomTemplate struct {
+	Expression string `yaml:"expression"`
+	Template   string `yaml:"template"`
+}
+
 // Message defines the structure for each message entry.
 type Message struct {
 	Template        string            `yaml:"template"`
 	Variables       map[string]string `yaml:"variables"`
-	CustomTemplates map[string]string `yaml:"custom_templates"`
+	CustomTemplates []CustomTemplate  `yaml:"custom_templates"`
 }
 
 // Translations holds messages.
@@ -140,10 +146,12 @@ func Generate(fsys fs.FS, path string) ([]byte, error) {
 
 		if len(msg.CustomTemplates) > 0 {
 			def += "\tswitch {\n"
-			for expr := range msg.CustomTemplates {
-				def += fmt.Sprintf("\tcase %s:\n", expr)
-				// will index proper lang file later
-				def += fmt.Sprintf("\t\tdata.I18ngoCustomTemplateExpr = \"%s\"\n", expr)
+			for _, ct := range msg.CustomTemplates {
+				def += fmt.Sprintf("\tcase %s:\n", ct.Expression)
+				// TODO: generate interface with message constructors and map[lang]*Translator where Translator implements it.
+				// this is loaded at startup and simply accessed dynamically by the client, e.g. templ with ctx using
+				// the right *Translator
+				def += fmt.Sprintf("\t\tdata.I18ngoCustomTemplateExpr = \"%s\"\n", ct.Expression)
 				def += "\t\treturn t.l.RenderMessage(\"" + msgID + "\", data)\n"
 			}
 			def += "\t}\n"

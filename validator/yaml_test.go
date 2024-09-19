@@ -18,20 +18,20 @@ func TestCompareTranslationFiles(t *testing.T) {
 			files: map[string]string{
 				"data/en.i18ngo.yaml": `messages:
   my_greeting:
-    template: "Hello {{ .Name }}! You have {{ .Count }} messages."
+    template: "a"
     variables:
       Name: string
       Count: int
     custom_templates:
-      "count == 0":  "Hello {{ .Name }}! You have {{ .Count }} message."`,
+      "count == 0":  "a"`,
 				"data/es.i18ngo.yaml": `messages:
   my_greeting:
-    template: "Hola {{ .Name }}! Tienes {{ .Count }} mensajes."
+    template: "b"
     variables:
       Name: string
       Count: int
     custom_templates:
-      "count == 0": "Hola {{ .Name }}! Tienes {{ .Count }} mensaje."`,
+      "count == 0": "b"`,
 			},
 			expectedError: false,
 		},
@@ -40,20 +40,20 @@ func TestCompareTranslationFiles(t *testing.T) {
 			files: map[string]string{
 				"data/en.i18ngo.yaml": `messages:
   my_greeting:
-    template: "Hello {{ .Name }}! You have {{ .Count }} messages."
+    template: "a"
     variables:
       Name: string
       Count: int
     custom_templates:
-      "count == 1":  "Hello {{ .Name }}! You have {{ .Count }} message."`,
+      "count == 0":  "a"`,
 				"data/es.i18ngo.yaml": `messages:
   my_greeting:
-    template: "Hola {{ .Name }}! Tienes {{ .Count }} mensajes."
+    template: "b"
     variables:
       Name: string
       Count: int
     custom_templates:
-      "count == 10": "Hola {{ .Name }}! Tienes {{ .Count }} mensaje."`,
+      "count == 10000": "b"`,
 			},
 			expectedError: true,
 		},

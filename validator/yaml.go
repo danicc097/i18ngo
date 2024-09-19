@@ -12,6 +12,8 @@ type anyMap map[string]interface{}
 
 // ValidateTranslationFiles verifies the structure of translation files in the given path is the same.
 func ValidateTranslationFiles(fsys fs.FS, path string) error {
+	// NOTE: variable type leaf nodes not checked since interface wont be implemented by that language codegen anyway.
+
 	var files []string
 	err := fs.WalkDir(fsys, path, func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
