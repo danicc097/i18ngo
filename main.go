@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/imports"
 	"mvdan.cc/gofumpt/format"
 
+	"github.com/danicc097/i18ngo/validator"
 	"github.com/kenshaw/snaker"
 	"gopkg.in/yaml.v3"
 )
@@ -47,6 +48,9 @@ type I18n struct {
 func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 	loader := &LanguageLoader{translations: make(map[string]Translations)}
 
+	if err := validator.ValidateTranslationFiles(fsys, path); err != nil {
+		return nil, fmt.Errorf("error validating translation files: %w", err)
+	}
 	err := fs.WalkDir(fsys, path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -62,6 +66,7 @@ func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 			}
 			tlFile := p[strings.LastIndex(p, "/")+1:]
 			lang := strings.Split(tlFile, ".i18ngo.yaml")[0]
+			fmt.Printf("lang: %v\n", lang)
 			if _, err = language.Parse(lang); err != nil {
 				return fmt.Errorf("invalid locale %s: %w", lang, err)
 			}

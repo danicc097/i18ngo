@@ -5,4 +5,5 @@ messages:
       Name: string
       Count: int
     custom_templates:
-      "count == 0": "Hola {{ .Name }}! Tienes {{ .Count }} mensaje."
+      "count == 1": "Hola {{ .Name }}! Tienes {{ .Count }} mensaje."
+      "count == 0": "Hola {{ .Name }}! No tienes ningún mensaje."

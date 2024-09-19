@@ -15,7 +15,7 @@ var testValidFS embed.FS
 
 func TestCodeGeneration(t *testing.T) {
 	testdataDir := "testdata/valid"
-	entries, err := os.ReadDir(testdataDir)
+	entries, err := testValidFS.ReadDir(testdataDir)
 	if err != nil {
 		t.Fatalf("Failed to read testdata directory: %v", err)
 	}
