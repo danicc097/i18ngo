@@ -9,13 +9,30 @@ messages:
   my_greeting:
     template: "Hello {{ .Name }}! You have {{ .Count }} messages."
     variables:
-      # vars are ensured to all be defined upon codegen
       Name: string
       Count: int
     custom_templates:
       # any valid go expression is allowed. Vars are available in camelCase form.
-      "count == 0":  "Hello {{ .Name }}! You have {{ .Count }} message."
+      - expression: "count == 1"
+        template: "Hello {{ .Name }}! You have {{ .Count }} message."
+      - expression: "count == 0"
+        template: "Hello {{ .Name }}! You have no messages."
 ```
 
-The above will generate code you can use in html templates as `*.MyGreeting(age,
-name)` with the current loader. Any other language
+The above will generate code you can use in html templates with
+ `*.MyGreeting(age, name)` with the current loader. Using alongside a library
+ like `a-h/templ`,
+ messages also benefit from full LSP support.
+
+Initialize all translators at startup from the generated code:
+
+```go
+loader := i18ngo.NewLanguageLoader(fsys, path)
+// assuming your codegen was saved to an i18ngen package
+tt := i18ngen.NewTranslators(loader)
+
+
+// lang may come from context, etc.
+t := tt[lang]
+t.MyGreeting(age, name)
+```
