@@ -21,6 +21,8 @@ var testValidFS embed.FS
 //go:embed templates/template.go.tpl
 var testInvalidFS embed.FS
 
+const pkgName = "translations"
+
 func TestCodeGeneration(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +38,7 @@ func TestCodeGeneration(t *testing.T) {
 		}
 
 		testName := filepath.Join(testdataDir, entry.Name())
-		got, err := i18ngo.Generate(testValidFS, testName)
+		got, err := i18ngo.Generate(testValidFS, testName, pkgName)
 		if err != nil {
 			t.Fatalf("Failed to generate Go code for %s/: %v", entry.Name(), err)
 		}
@@ -74,7 +76,7 @@ func TestInvalidCodeGeneration(t *testing.T) {
 		require.NoError(t, err)
 		wantError := strings.TrimSuffix(string(e), "\n")
 
-		_, err = i18ngo.Generate(testInvalidFS, testName)
+		_, err = i18ngo.Generate(testInvalidFS, testName, pkgName)
 		if err == nil {
 			t.Fatalf("Expected error for %s/ but got nothing", entry.Name())
 		}

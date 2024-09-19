@@ -73,6 +73,7 @@ func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 }
 
 type TemplateData struct {
+	PkgName      string
 	Langs        []LangData
 	Messages     []MessageData
 	Translations []TranslationData
@@ -104,16 +105,20 @@ type TranslationData struct {
 }
 
 // Generate generates Go code for translations in the given path in the filesystem.
-// Assumes filesystem contains a templates/template.go.tpl file to generate from.
-func Generate(fsys fs.FS, path string) ([]byte, error) {
+// Assumes the filesystem contains a templates/template.go.tpl file to generate from.
+// You may extend the default template as desired.
+func Generate(fsys fs.FS, path, pkgName string) ([]byte, error) {
 	loader, err := NewLanguageLoader(fsys, path)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	var data TemplateData
-	data.Langs = []LangData{}
-	data.Translations = []TranslationData{}
+	data := TemplateData{
+		PkgName:      pkgName,
+		Messages:     make([]MessageData, 0),
+		Translations: make([]TranslationData, 0),
+		Langs:        make([]LangData, 0),
+	}
 
 	langKeys := make([]string, 0, len(loader.translations))
 	for lang := range loader.translations {

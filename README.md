@@ -20,17 +20,22 @@ messages:
 ```
 
 The above will generate code you can use in html templates with
- `*.MyGreeting(age, name)` with the current loader. Using alongside a library
+ `*.MyGreeting(count, name)` with the current loader. Using alongside a library
  like `a-h/templ`,
  messages also benefit from full LSP support.
 
 Initialize all translators at startup from the generated code:
 
 ```go
+// call as library to generate as many packages as you want.
+// include a templates/template.go.tpl in your filesystem, starting
+// with the official one as basepoint and extend if required.
+err := i18n.Generate(fsys, "path to *.i18ngo.yaml dir", pkgName)
+
 // assuming your codegen was saved to an i18ngen package
 tt := i18ngen.NewTranslators()
 
 // lang may come from context, etc.
 t := tt[lang]
-t.MyGreeting(age, name)
+t.MyGreeting(count, name)
 ```
