@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/danicc097/i18ngo"
 	"github.com/google/go-cmp/cmp"
@@ -83,4 +84,27 @@ func TestInvalidCodeGeneration(t *testing.T) {
 
 		assert.ErrorContainsf(t, err, string(wantError), entry.Name())
 	}
+}
+
+func TestWithCustomTemplate(t *testing.T) {
+	t.Parallel()
+
+	testdataDir := "testdata"
+	fs := fstest.MapFS{
+		"templates/template.go.tpl": &fstest.MapFile{
+			Data: []byte("package customtemplate"),
+		},
+		"testdata/en.i18ngo.yaml": &fstest.MapFile{
+			Data: []byte(`messages:
+  my_greeting:
+    template: "a"
+    variables:
+      Name: string
+      Count: int`),
+		},
+	}
+
+	got, err := i18ngo.Generate(fs, testdataDir, pkgName, i18ngo.WithFilesystemTemplate())
+	require.NoError(t, err)
+	assert.Equal(t, "package customtemplate\n", string(got))
 }
