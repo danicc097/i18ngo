@@ -28,14 +28,15 @@ Initialize all translators at startup from the generated code:
 
 ```go
 // call as library to generate as many packages as you want.
-// include a templates/template.go.tpl in your filesystem, starting
-// with the official one as basepoint and extend if required.
-err := i18n.Generate(fsys, "path to *.i18ngo.yaml dir", pkgName)
+// you may include a templates/template.go.tpl in your filesystem
+// and pass the i18ngo.WithFilesystemTemplate() option
+// to use your own extended template.
+err := i18ngo.Generate(fsys, "path to *.i18ngo.yaml dir", pkgName)
 
 // assuming your codegen was saved to an i18ngen package
 tt := i18ngen.NewTranslators()
 
-// lang may come from context, etc.
+// lang may come from context, etc. implementation is up to the consumer
 t := tt[lang]
 t.MyGreeting(count, name)
 ```

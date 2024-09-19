@@ -2,6 +2,7 @@ package i18ngo
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -104,10 +105,30 @@ type TranslationData struct {
 	Messages  []MessageData
 }
 
+//go:embed templates/template.go.tpl
+var templateFS embed.FS
+
+type GenerateOption func(*generateOptions)
+
+type generateOptions struct {
+	WithCustomTemplate bool
+}
+
+func WithFilesystemTemplate() GenerateOption {
+	return func(opts *generateOptions) {
+		opts.WithCustomTemplate = true
+	}
+}
+
 // Generate generates Go code for translations in the given path in the filesystem.
 // Assumes the filesystem contains a templates/template.go.tpl file to generate from.
 // You may extend the default template as desired.
-func Generate(fsys fs.FS, path, pkgName string) ([]byte, error) {
+func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte, error) {
+	optsMap := &generateOptions{}
+	for _, o := range opts {
+		o(optsMap)
+	}
+
 	loader, err := NewLanguageLoader(fsys, path)
 	if err != nil {
 		return []byte{}, err
@@ -201,7 +222,12 @@ func Generate(fsys fs.FS, path, pkgName string) ([]byte, error) {
 			return snaker.ForceCamelIdentifier(s)
 		},
 	}
-	tmpl := template.Must(template.New("template.go.tpl").Funcs(funcMap).ParseFS(fsys, "templates/template.go.tpl"))
+
+	var tplFsys fs.FS = templateFS
+	if optsMap.WithCustomTemplate {
+		tplFsys = fsys
+	}
+	tmpl := template.Must(template.New("template.go.tpl").Funcs(funcMap).ParseFS(tplFsys, "templates/template.go.tpl"))
 
 	if err != nil {
 		return []byte{}, fmt.Errorf("error parsing template: %w", err)
