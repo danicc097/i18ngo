@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"context"
+	"os"
+
+	"github.com/danicc097/i18ngo/templates"
+)
 
 func main() {
-	fmt.Println("i18ngo")
+	component := templates.TranslationCode(templates.TemplateData{
+		Langs: []templates.LangData{
+			{Lang: "en"},
+		},
+	})
+	component.Render(context.Background(), os.Stdout)
 }

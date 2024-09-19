@@ -13,32 +13,18 @@ import (
 	"golang.org/x/tools/imports"
 	"mvdan.cc/gofumpt/format"
 
+	"github.com/danicc097/i18ngo/templates"
 	"github.com/danicc097/i18ngo/validator"
 	"github.com/kenshaw/snaker"
 	"gopkg.in/yaml.v3"
 )
 
-type CustomTemplate struct {
-	Expression string `yaml:"expression"`
-	Template   string `yaml:"template"`
-}
-
-type Message struct {
-	Template        string            `yaml:"template"`
-	Variables       map[string]string `yaml:"variables"`
-	CustomTemplates []CustomTemplate  `yaml:"custom_templates"`
-}
-
-type Translations struct {
-	Messages map[string]Message `yaml:"messages"`
-}
-
 type LanguageLoader struct {
-	translations map[string]Translations
+	translations map[string]templates.Translations
 }
 
 func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
-	loader := &LanguageLoader{translations: make(map[string]Translations)}
+	loader := &LanguageLoader{translations: make(map[string]templates.Translations)}
 
 	if err := validator.ValidateTranslationFiles(fsys, path); err != nil {
 		return nil, fmt.Errorf("error validating translation files: %w", err)
@@ -52,7 +38,7 @@ func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 			if err != nil {
 				return err
 			}
-			var t Translations
+			var t templates.Translations
 			if err := yaml.Unmarshal(file, &t); err != nil {
 				return err
 			}
@@ -71,38 +57,6 @@ func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 	}
 
 	return loader, nil
-}
-
-type TemplateData struct {
-	PkgName      string
-	Langs        []LangData
-	Messages     []MessageData
-	Translations []TranslationData
-}
-
-type LangData struct {
-	CamelLang string
-	Lang      string
-}
-
-type MessageData struct {
-	CamelLang       string
-	MethodName      string
-	Args            string
-	Vars            []VarData
-	Template        string
-	CustomTemplates []CustomTemplate
-}
-
-type VarData struct {
-	Name  string
-	Type  string
-	Param string
-}
-
-type TranslationData struct {
-	CamelLang string
-	Messages  []MessageData
 }
 
 //go:embed templates/template.go.tpl
@@ -134,11 +88,11 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 		return []byte{}, err
 	}
 
-	data := TemplateData{
+	data := templates.TemplateData{
 		PkgName:      pkgName,
-		Messages:     make([]MessageData, 0),
-		Translations: make([]TranslationData, 0),
-		Langs:        make([]LangData, 0),
+		Messages:     make([]templates.MessageData, 0),
+		Translations: make([]templates.TranslationData, 0),
+		Langs:        make([]templates.LangData, 0),
 	}
 
 	langKeys := make([]string, 0, len(loader.translations))
@@ -150,9 +104,9 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 	for _, lang := range langKeys {
 		translations := loader.translations[lang]
 		camelLang := snaker.SnakeToCamel(lang)
-		data.Langs = append(data.Langs, LangData{CamelLang: camelLang, Lang: lang})
+		data.Langs = append(data.Langs, templates.LangData{CamelLang: camelLang, Lang: lang})
 
-		transData := TranslationData{CamelLang: camelLang}
+		transData := templates.TranslationData{CamelLang: camelLang}
 
 		msgIDs := make([]string, 0, len(translations.Messages))
 		for msgID := range translations.Messages {
@@ -163,7 +117,7 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 		for _, msgID := range msgIDs {
 			msg := translations.Messages[msgID]
 			methodName := snaker.SnakeToCamel(msgID)
-			vars := []VarData{}
+			vars := []templates.VarData{}
 
 			// TODO: generate variables with interface{} type instead
 			// if var not defined.
@@ -172,7 +126,7 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 			tplVars := make([]string, 0, len(msg.Variables))
 			exprVars := make([]string, 0, len(msg.Variables))
 			for name, typ := range msg.Variables {
-				vars = append(vars, VarData{
+				vars = append(vars, templates.VarData{
 					Name:  name,
 					Type:  typ,
 					Param: snaker.ForceLowerCamelIdentifier(name),
@@ -200,7 +154,7 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 			}
 			args = strings.TrimSuffix(args, ", ")
 
-			transData.Messages = append(transData.Messages, MessageData{
+			transData.Messages = append(transData.Messages, templates.MessageData{
 				CamelLang:       camelLang,
 				MethodName:      methodName,
 				Args:            args,
