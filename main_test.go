@@ -45,13 +45,18 @@ func TestCodeGeneration(t *testing.T) {
 		}
 
 		wantSnapshot := filepath.Join(testName, "snapshots", "i18n.go")
-		want, err := os.ReadFile(wantSnapshot)
+		want, err := os.ReadFile(wantSnapshot) // don't use fsys for tests, snapshot will be updated later
 		if err != nil {
 			t.Fatalf("Failed to read snapshot file for %s: %v", entry.Name(), err)
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("Mismatch in %q (-want +got):\n%s", testdataDir+"/"+entry.Name(), diff)
-			t.Log(string(got))
+		}
+
+		if os.Getenv("SNAPSHOT_UPDATE") != "" {
+			if err := os.WriteFile(wantSnapshot, got, 0o666); err != nil {
+				t.Fatalf("Failed to update snapshot file for %s: %v", entry.Name(), err)
+			}
 		}
 	}
 }
