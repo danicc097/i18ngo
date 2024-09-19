@@ -27,10 +27,10 @@ func (t *T) MyGreeting(age int, name string) (string, error) {
 		Age:  age,
 		Name: name,
 	}
-	if count == 0 {
+	switch {
+	case count == 0:
 		data.I18ngoCustomTemplateExpr = "count == 0"
 		return t.l.RenderMessage("my_greeting", data)
 	}
-
 	return t.l.RenderMessage("my_greeting", data)
 }

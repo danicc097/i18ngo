@@ -20,8 +20,9 @@ func New(l *i18ngo.LanguageLoader) *T {
 
 func (t *T) MyGreeting(age int, name string) (string, error) {
 	data := struct {
-		Age  int
-		Name string
+		Age                      int
+		Name                     string
+		I18ngoCustomTemplateExpr string
 	}{
 		Age:  age,
 		Name: name,

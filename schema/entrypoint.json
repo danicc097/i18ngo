@@ -23,9 +23,9 @@
               "description": "Type of the variable (Go primitive types)"
             }
           },
-          "custom_template": {
+          "custom_templates": {
             "type": "object",
-            "description": "Override template with a valid go expression. Camel cased variable names are available for expressions. \nExample: `count == 0`.\nExpressions are checked in insertion order.",
+            "description": "Override template with a valid go expression. Camel cased variable names are available for expressions. \nExample: `count == 0`",
             "additionalProperties": {
               "type": "string",
               "description": "Go expression"

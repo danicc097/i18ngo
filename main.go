@@ -3,7 +3,6 @@ package i18ngo
 import (
 	"bytes"
 	"context"
-	"embed"
 	"errors"
 	"fmt"
 	"html/template"
@@ -11,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/text/language"
 	"golang.org/x/tools/imports"
 	"mvdan.cc/gofumpt/format"
 
@@ -20,17 +20,15 @@ import (
 
 // Message defines the structure for each message entry.
 type Message struct {
-	Template  string            `yaml:"template"`
-	Variables map[string]string `yaml:"variables"`
+	Template        string            `yaml:"template"`
+	Variables       map[string]string `yaml:"variables"`
+	CustomTemplates map[string]string `yaml:"custom_templates"`
 }
 
 // Translations holds messages.
 type Translations struct {
 	Messages map[string]Message `yaml:"messages"`
 }
-
-//go:embed testdata/*
-var testFS embed.FS
 
 // LanguageLoader will load language files based on the current context language.
 type LanguageLoader struct {
@@ -45,23 +43,27 @@ type I18n struct {
 	Loader *LanguageLoader
 }
 
-// NewLanguageLoader initializes and loads YAML-based translations.
-func NewLanguageLoader(fsys fs.FS, lang string) (*LanguageLoader, error) {
+// NewLanguageLoader initializes and loads YAML-based translations in the given directory.
+func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 	loader := &LanguageLoader{translations: make(map[string]Translations)}
 
-	// Load all translations based on the language
-	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(path, ".yaml") {
-			file, err := fs.ReadFile(fsys, path)
+		if strings.HasSuffix(p, ".i18ngo.yaml") {
+			file, err := fs.ReadFile(fsys, p)
 			if err != nil {
 				return err
 			}
 			var t Translations
 			if err := yaml.Unmarshal(file, &t); err != nil {
 				return err
+			}
+			tlFile := p[strings.LastIndex(p, "/")+1:]
+			lang := strings.Split(tlFile, ".i18ngo.yaml")[0]
+			if _, err = language.Parse(lang); err != nil {
+				return fmt.Errorf("invalid locale %s: %w", lang, err)
 			}
 			loader.translations[lang] = t
 		}
@@ -75,11 +77,13 @@ func NewLanguageLoader(fsys fs.FS, lang string) (*LanguageLoader, error) {
 	return loader, nil
 }
 
-func Generate(fsys fs.FS, lang string) ([]byte, error) {
-	loader, err := NewLanguageLoader(fsys, lang)
+// Generate will generate go code based on the translation files in the given directory.
+func Generate(fsys fs.FS, path string) ([]byte, error) {
+	loader, err := NewLanguageLoader(fsys, path)
 	if err != nil {
 		return []byte{}, err
 	}
+	fmt.Printf("loader.translations: %v\n", loader.translations)
 
 	var buf bytes.Buffer
 	buf.WriteString("package translation\n\n")
@@ -88,6 +92,11 @@ func Generate(fsys fs.FS, lang string) ([]byte, error) {
 	buf.WriteString("// New returns a new i18n translator.\n")
 	buf.WriteString("func New(l *i18ngo.LanguageLoader) *T {\n\treturn &T{\n\t\tl: l,\n\t}\n}\n\n")
 
+	langs := make([]string, 0, len(loader.translations))
+	for k := range loader.translations {
+		langs = append(langs, k)
+	}
+	lang := langs[0]
 	messageIDs := make([]string, 0, len(loader.translations[lang].Messages))
 	for id := range loader.translations[lang].Messages {
 		messageIDs = append(messageIDs, id)
@@ -98,7 +107,7 @@ func Generate(fsys fs.FS, lang string) ([]byte, error) {
 		msg := loader.translations[lang].Messages[msgID]
 		methName := snaker.SnakeToCamel(msgID)
 
-		methSig := fmt.Sprintf("func (t *T) %s(", methName)
+		def := fmt.Sprintf("func (t *T) %s(", methName)
 
 		varNames := make([]string, 0, len(msg.Variables))
 		for name := range msg.Variables {
@@ -108,24 +117,36 @@ func Generate(fsys fs.FS, lang string) ([]byte, error) {
 
 		for _, name := range varNames {
 			typ := msg.Variables[name]
-			methSig += fmt.Sprintf("%s %s, ", snaker.ForceLowerCamelIdentifier(name), typ)
+			def += fmt.Sprintf("%s %s, ", snaker.ForceLowerCamelIdentifier(name), typ)
 		}
-		methSig = strings.TrimSuffix(methSig, ", ") + ") (string, error) {\n"
+		def = strings.TrimSuffix(def, ", ") + ") (string, error) {\n"
 
-		methSig += "\tdata := struct{\n"
+		def += "\tdata := struct{\n"
 		for _, name := range varNames {
 			typ := msg.Variables[name]
-			methSig += fmt.Sprintf("\t\t%s %s\n", snaker.SnakeToCamel(name), typ)
+			def += fmt.Sprintf("\t\t%s %s\n", snaker.SnakeToCamel(name), typ)
 		}
-		methSig += "\t} {\n"
+		def += "\t\tI18ngoCustomTemplateExpr string\n"
+		def += "\t} {\n"
 		for _, name := range varNames {
-			methSig += fmt.Sprintf("\t\t%s: %s,\n", snaker.SnakeToCamel(name), snaker.ForceLowerCamelIdentifier(name))
+			def += fmt.Sprintf("\t\t%s: %s,\n", snaker.SnakeToCamel(name), snaker.ForceLowerCamelIdentifier(name))
 		}
-		methSig += "\t}\n"
+		def += "\t}\n"
 
-		methSig += fmt.Sprintf("\treturn t.l.RenderMessage(\"%s\", data)\n}\n", msgID)
+		if len(msg.CustomTemplates) > 0 {
+			def += "\tswitch {\n"
+			for expr := range msg.CustomTemplates {
+				def += fmt.Sprintf("\tcase %s:\n", expr)
+				// will index proper lang file later
+				def += fmt.Sprintf("\t\tdata.I18ngoCustomTemplateExpr = \"%s\"\n", expr)
+				def += "\t\treturn t.l.RenderMessage(\"" + msgID + "\", data)\n"
+			}
+			def += "\t}\n"
+		}
 
-		buf.WriteString(methSig)
+		def += fmt.Sprintf("\treturn t.l.RenderMessage(\"%s\", data)\n}\n", msgID)
+
+		buf.WriteString(def)
 	}
 
 	source := buf.Bytes()

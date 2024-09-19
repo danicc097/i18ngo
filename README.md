@@ -12,7 +12,7 @@ messages:
       # vars are ensured to all be defined upon codegen
       Name: string
       Count: int
-    custom_template:
+    custom_templates:
       # any valid go expression is allowed. Vars are available in camelCase form.
       "count == 0":  "Hello {{ .Name }}! You have {{ .Count }} message."
 ```

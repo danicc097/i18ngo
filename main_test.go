@@ -26,9 +26,9 @@ func TestCodeGeneration(t *testing.T) {
 		}
 
 		testName := filepath.Join(testdataDir, entry.Name())
-		got, err := i18ngo.Generate(testValidFS, entry.Name())
+		got, err := i18ngo.Generate(testValidFS, testName)
 		if err != nil {
-			t.Fatalf("Failed to generate Go code for %s: %v", entry.Name(), err)
+			t.Fatalf("Failed to generate Go code for %s/en.i18ngo.yaml: %v", entry.Name(), err)
 		}
 
 		wantSnapshot := filepath.Join(testName, "snapshots", "i18n.go")
@@ -38,7 +38,7 @@ func TestCodeGeneration(t *testing.T) {
 		}
 
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("Mismatch between generated code and snapshot for %s (-want +got):\n%s", entry.Name(), diff)
+			t.Errorf("Mismatch in %q (-want +got):\n%s", testdataDir+"/"+entry.Name(), diff)
 		}
 	}
 }
