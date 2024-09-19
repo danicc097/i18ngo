@@ -3,10 +3,10 @@ package i18ngo
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"sort"
 	"strings"
+	"text/template"
 
 	"golang.org/x/text/language"
 	"golang.org/x/tools/imports"
@@ -72,137 +72,110 @@ func NewLanguageLoader(fsys fs.FS, path string) (*LanguageLoader, error) {
 	return loader, nil
 }
 
+type TemplateData struct {
+	Langs        []LangData
+	Messages     []MessageData
+	Translations []TranslationData
+}
+
+type LangData struct {
+	CamelLang string
+	Lang      string
+}
+
+type MessageData struct {
+	CamelLang       string
+	MethodName      string
+	Args            string
+	Vars            []VarData
+	Template        string
+	CustomTemplates []CustomTemplate
+}
+
+type VarData struct {
+	Name  string
+	Type  string
+	Param string
+}
+
+type TranslationData struct {
+	CamelLang string
+	Messages  []MessageData
+}
+
+// Generate generates Go code for translations in the given path in the filesystem.
+// Assumes filesystem contains a templates/template.go.tpl file to generate from.
 func Generate(fsys fs.FS, path string) ([]byte, error) {
 	loader, err := NewLanguageLoader(fsys, path)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	var buf bytes.Buffer
-	buf.WriteString("package translation\n\n")
-	buf.WriteString("import (\n\t\"bytes\"\n\t\"html/template\"\n\t\"github.com/danicc097/i18ngo\"\n)\n\n")
+	var data TemplateData
+	data.Langs = []LangData{}
+	data.Translations = []TranslationData{}
 
-	buf.WriteString("type Translator interface {\n")
-
-	firstLang := ""
-	for k := range loader.translations {
-		firstLang = k
-		break
-	}
-
-	messageIDs := make([]string, 0, len(loader.translations[firstLang].Messages))
-	for id := range loader.translations[firstLang].Messages {
-		messageIDs = append(messageIDs, id)
-	}
-	sort.Strings(messageIDs)
-
-	for _, id := range messageIDs {
-		methName := snaker.SnakeToCamel(id)
-		vars := loader.translations[firstLang].Messages[id].Variables
-		varsList := make([]string, 0, len(vars))
-		for name := range vars {
-			varsList = append(varsList, name)
-		}
-		sort.Strings(varsList)
-		varArgs := ""
-		for _, name := range varsList {
-			typ := vars[name]
-			varArgs += fmt.Sprintf("%s %s, ", snaker.ForceLowerCamelIdentifier(name), typ)
-		}
-		varArgs = strings.TrimSuffix(varArgs, ", ")
-		buf.WriteString(fmt.Sprintf("\t%s(%s) (string, error)\n", methName, varArgs))
-	}
-	buf.WriteString("}\n\n")
-
-	langs := make([]string, 0, len(loader.translations))
+	langKeys := make([]string, 0, len(loader.translations))
 	for lang := range loader.translations {
-		langs = append(langs, lang)
+		langKeys = append(langKeys, lang)
 	}
-	sort.Strings(langs)
+	sort.Strings(langKeys)
 
-	buf.WriteString("type Lang string\n")
-	buf.WriteString("const (\n")
-	for _, lang := range langs {
-		camelLang := snaker.SnakeToCamel(lang)
-		buf.WriteString(fmt.Sprintf("Lang%s Lang = \"%s\"\n", camelLang, lang))
-	}
-	buf.WriteString(")\n\n")
-
-	buf.WriteString("var Translators = map[Lang]Translator{\n")
-	for _, lang := range langs {
-		camelLang := snaker.SnakeToCamel(lang)
-		buf.WriteString(fmt.Sprintf("\tLang%s: New%s(&i18ngo.LanguageLoader{}),\n", camelLang, camelLang))
-	}
-	buf.WriteString("}\n\n")
-
-	tt := make([]string, 0, len(loader.translations))
-	for k := range loader.translations {
-		tt = append(tt, k)
-	}
-	sort.Strings(tt)
-
-	for _, lang := range tt {
+	for _, lang := range langKeys {
 		translations := loader.translations[lang]
 		camelLang := snaker.SnakeToCamel(lang)
-		buf.WriteString(fmt.Sprintf("type %s struct {\n\tl *i18ngo.LanguageLoader\n}\n\n", camelLang))
-		buf.WriteString(fmt.Sprintf("func New%s(l *i18ngo.LanguageLoader) *%s {\n\treturn &%s{\n\t\tl: l,\n\t}\n}\n\n", camelLang, camelLang, camelLang))
+		data.Langs = append(data.Langs, LangData{CamelLang: camelLang, Lang: lang})
 
-		messageIDs := make([]string, 0, len(translations.Messages))
-		for id := range translations.Messages {
-			messageIDs = append(messageIDs, id)
+		transData := TranslationData{CamelLang: camelLang}
+
+		msgIDs := make([]string, 0, len(translations.Messages))
+		for msgID := range translations.Messages {
+			msgIDs = append(msgIDs, msgID)
 		}
-		sort.Strings(messageIDs)
+		sort.Strings(msgIDs)
 
-		for _, msgID := range messageIDs {
+		for _, msgID := range msgIDs {
 			msg := translations.Messages[msgID]
-			methName := snaker.SnakeToCamel(msgID)
-
-			def := fmt.Sprintf("func (t *%s) %s(", camelLang, methName)
-
-			varNames := make([]string, 0, len(msg.Variables))
-			for name := range msg.Variables {
-				varNames = append(varNames, name)
+			methodName := snaker.SnakeToCamel(msgID)
+			vars := []VarData{}
+			for name, typ := range msg.Variables {
+				vars = append(vars, VarData{
+					Name:  snaker.SnakeToCamel(name),
+					Type:  typ,
+					Param: snaker.ForceLowerCamelIdentifier(name),
+				})
 			}
-			sort.Strings(varNames)
-
-			for _, name := range varNames {
-				typ := msg.Variables[name]
-				def += fmt.Sprintf("%s %s, ", snaker.ForceLowerCamelIdentifier(name), typ)
+			sort.Slice(vars, func(i, j int) bool {
+				return vars[i].Name < vars[j].Name
+			})
+			args := ""
+			for _, v := range vars {
+				args += fmt.Sprintf("%s %s, ", v.Param, v.Type)
 			}
-			def = strings.TrimSuffix(def, ", ") + ") (string, error) {\n"
+			args = strings.TrimSuffix(args, ", ")
 
-			def += "\tdata := struct{\n"
-			for _, name := range varNames {
-				typ := msg.Variables[name]
-				def += fmt.Sprintf("\t\t%s %s\n", snaker.SnakeToCamel(name), typ)
-			}
-			def += "\t} {\n"
-			for _, name := range varNames {
-				def += fmt.Sprintf("\t\t%s: %s,\n", snaker.SnakeToCamel(name), snaker.ForceLowerCamelIdentifier(name))
-			}
-			def += "\t}\n"
-
-			if len(msg.CustomTemplates) > 0 {
-				def += "\tswitch {\n"
-				for _, ct := range msg.CustomTemplates {
-					def += fmt.Sprintf("\tcase %s:\n", ct.Expression)
-					def += fmt.Sprintf("\t\ttmpl, err := template.New(\"custom\").Parse(\"%s\")\n", template.HTMLEscapeString(ct.Template))
-					def += "\t\tif err != nil {\n\t\t\treturn \"\", err\n\t\t}\n"
-					def += "\t\tvar buf bytes.Buffer\n"
-					def += "\t\tif err := tmpl.Execute(&buf, data); err != nil {\n\t\t\treturn \"\", err\n\t\t}\n"
-					def += "\t\treturn buf.String(), nil\n"
-				}
-				def += "\t}\n"
-			}
-
-			def += "\ttmpl, err := template.New(\"message\").Parse(\"" + template.HTMLEscapeString(msg.Template) + "\")\n"
-			def += "\tif err != nil {\n\t\treturn \"\", err\n\t}\n"
-			def += "\tvar buf bytes.Buffer\n"
-			def += "\tif err := tmpl.Execute(&buf, data); err != nil {\n\t\treturn \"\", err\n\t}\n"
-			def += "\treturn buf.String(), nil\n}\n"
-
-			buf.WriteString(def)
+			transData.Messages = append(transData.Messages, MessageData{
+				CamelLang:       camelLang,
+				MethodName:      methodName,
+				Args:            args,
+				Vars:            vars,
+				Template:        msg.Template,
+				CustomTemplates: msg.CustomTemplates,
+			})
 		}
+		data.Translations = append(data.Translations, transData)
+	}
+
+	data.Messages = data.Translations[0].Messages // all translations have the same messages
+
+	tmpl, err := template.ParseFS(fsys, "templates/template.go.tpl")
+	if err != nil {
+		return []byte{}, fmt.Errorf("error parsing template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return []byte{}, fmt.Errorf("error executing template: %w", err)
 	}
 
 	source := buf.Bytes()

@@ -7,10 +7,12 @@ import (
 	"github.com/danicc097/i18ngo"
 )
 
+// Translator is implemented by all language translators.
 type Translator interface {
 	MyGreeting(count int, name string) (string, error)
 }
 
+// Lang represents available translated languages.
 type Lang string
 
 const (
@@ -18,21 +20,25 @@ const (
 	LangEs Lang = "es"
 )
 
-var Translators = map[Lang]Translator{
-	LangEn: NewEn(&i18ngo.LanguageLoader{}),
-	LangEs: NewEs(&i18ngo.LanguageLoader{}),
+// NewTranslators initializes all translators based on a initialized loader.
+func NewTranslators(l *i18ngo.LanguageLoader) map[Lang]Translator {
+	return map[Lang]Translator{
+		LangEn: newEn(l),
+		LangEs: newEs(l),
+	}
 }
 
 type En struct {
 	l *i18ngo.LanguageLoader
 }
 
-func NewEn(l *i18ngo.LanguageLoader) *En {
+func newEn(l *i18ngo.LanguageLoader) *En {
 	return &En{
 		l: l,
 	}
 }
 
+// MyGreeting renders a properly translated message.
 func (t *En) MyGreeting(count int, name string) (string, error) {
 	data := struct {
 		Count int
@@ -63,6 +69,7 @@ func (t *En) MyGreeting(count int, name string) (string, error) {
 		}
 		return buf.String(), nil
 	}
+
 	tmpl, err := template.New("message").Parse("Hello {{ .Name }}! You have {{ .Count }} messages.")
 	if err != nil {
 		return "", err
@@ -78,12 +85,13 @@ type Es struct {
 	l *i18ngo.LanguageLoader
 }
 
-func NewEs(l *i18ngo.LanguageLoader) *Es {
+func newEs(l *i18ngo.LanguageLoader) *Es {
 	return &Es{
 		l: l,
 	}
 }
 
+// MyGreeting renders a properly translated message.
 func (t *Es) MyGreeting(count int, name string) (string, error) {
 	data := struct {
 		Count int
@@ -114,6 +122,7 @@ func (t *Es) MyGreeting(count int, name string) (string, error) {
 		}
 		return buf.String(), nil
 	}
+
 	tmpl, err := template.New("message").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensajes.")
 	if err != nil {
 		return "", err

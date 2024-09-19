@@ -12,6 +12,7 @@ import (
 )
 
 //go:embed testdata/valid/*
+//go:embed templates/template.go.tpl
 var testValidFS embed.FS
 
 func TestCodeGeneration(t *testing.T) {
