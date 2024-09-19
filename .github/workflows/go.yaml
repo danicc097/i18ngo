@@ -33,7 +33,17 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: go mod download
+        run: go mod tidy
+
+      - name: Diff check
+        run: |
+          git diff --exit-code # -- . ':!dir_to_skip'
+          untracked_files=$(git ls-files --others --exclude-standard)
+          if [ -n "$untracked_files" ]; then
+              echo "[ERROR] Found untracked files:"
+              echo "${untracked_files[*]}"
+              exit 1
+          fi
 
       - name: Vet code
         run: go vet ./...
