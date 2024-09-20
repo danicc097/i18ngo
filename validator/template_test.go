@@ -63,7 +63,7 @@ func TestValidateTemplate(t *testing.T) {
 			name:        "template with multiple unknown variables",
 			template:    `{{ .UnknownVar1 }} and {{ .UnknownVar2 }}`,
 			variables:   []string{"MyVar"},
-			errContains: "unknown variable used in template: UnknownVar1",
+			errContains: "unknown variable used in template: UnknownVar1, unknown variable used in template: UnknownVar2",
 		},
 	}
 
