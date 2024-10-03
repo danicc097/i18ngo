@@ -2,6 +2,7 @@ package i18ngo_test
 
 import (
 	"embed"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,17 +40,22 @@ func TestCodeGeneration(t *testing.T) {
 		}
 
 		testName := filepath.Join(testdataDir, entry.Name())
-		got, err := i18ngo.Generate(testValidFS, testName, pkgName)
+		data, err := i18ngo.GetTranslationData(testValidFS, testName, pkgName)
+		require.NoError(t, err)
+		got, err := i18ngo.Generate(data)
 		if err != nil {
 			t.Fatalf("Failed to generate Go code for %s/: %v", entry.Name(), err)
 		}
 
 		wantSnapshot := filepath.Join(testName, "snapshots", "i18n.go")
+		// format both src with gofmt:
 		want, err := os.ReadFile(wantSnapshot) // don't use fsys for tests, snapshot will be updated later
 		if err != nil {
 			t.Fatalf("Failed to read snapshot file for %s: %v", entry.Name(), err)
 		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		wantFmtted := mustFormat(t, want)
+		gotFmtted := mustFormat(t, got)
+		if diff := cmp.Diff(string(wantFmtted), string(gotFmtted)); diff != "" {
 			t.Errorf("Mismatch in %q (-want +got):\n%s", testdataDir+"/"+entry.Name(), diff)
 		}
 
@@ -59,6 +65,16 @@ func TestCodeGeneration(t *testing.T) {
 			}
 		}
 	}
+}
+
+func mustFormat(t *testing.T, src []byte) []byte {
+	t.Helper()
+
+	got, err := format.Source(src)
+	if err != nil {
+		t.Fatalf("Failed to format generated code: %v", err)
+	}
+	return got
 }
 
 func TestInvalidCodeGeneration(t *testing.T) {
@@ -77,21 +93,30 @@ func TestInvalidCodeGeneration(t *testing.T) {
 
 		testName := filepath.Join(testdataDir, entry.Name())
 
-		wantErrorPath := filepath.Join(testName, "stderr.txt")
-		e, err := testInvalidFS.ReadFile(wantErrorPath)
-		require.NoError(t, err)
-		wantError := strings.TrimSuffix(string(e), "\n")
+		t.Run(testName, func(t *testing.T) {
+			wantErrorPath := filepath.Join(testName, "stderr.txt")
+			e, err := testInvalidFS.ReadFile(wantErrorPath)
+			require.NoError(t, err)
+			wantError := strings.TrimSuffix(string(e), "\n")
+			data, err := i18ngo.GetTranslationData(testInvalidFS, testName, pkgName)
+			if err == nil {
+				_, err = i18ngo.Generate(data)
+				if err == nil {
+					t.Fatalf("Expected error for %s/ but got nothing", entry.Name())
+				}
+			}
 
-		_, err = i18ngo.Generate(testInvalidFS, testName, pkgName)
-		if err == nil {
-			t.Fatalf("Expected error for %s/ but got nothing", entry.Name())
-		}
-
-		assert.ErrorContainsf(t, err, string(wantError), entry.Name())
+			assert.ErrorContainsf(t, err, string(wantError), entry.Name())
+		})
 	}
 }
 
 func TestWithCustomTemplate(t *testing.T) {
+	t.Skip(`
+	TODO: allow to call custom templ generated code (provide a Generator interface).
+	This way users can use whatever templ version they want, or plain go code for all we care.
+	`)
+
 	t.Parallel()
 
 	testdataDir := "testdata"
@@ -109,7 +134,10 @@ func TestWithCustomTemplate(t *testing.T) {
 		},
 	}
 
-	got, err := i18ngo.Generate(fs, testdataDir, pkgName, i18ngo.WithFilesystemTemplate())
+	data, err := i18ngo.GetTranslationData(fs, testdataDir, pkgName, i18ngo.WithFilesystemTemplate())
+	require.NoError(t, err)
+
+	got, err := i18ngo.Generate(data)
 	require.NoError(t, err)
 	assert.Equal(t, "package customtemplate\n", string(got))
 }

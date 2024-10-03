@@ -2,16 +2,14 @@ package i18ngo
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
 	"sort"
 	"strings"
-	"text/template"
 
 	"golang.org/x/text/language"
-	"golang.org/x/tools/imports"
-	"mvdan.cc/gofumpt/format"
 
 	"github.com/danicc097/i18ngo/templates"
 	"github.com/danicc097/i18ngo/validator"
@@ -74,10 +72,24 @@ func WithFilesystemTemplate() GenerateOption {
 	}
 }
 
-// Generate generates Go code for translations in the given path in the filesystem.
+func Generate(data *templates.TemplateData) ([]byte, error) {
+	if data == nil {
+		return nil, fmt.Errorf("data must be non-nil")
+	}
+	var buf bytes.Buffer
+	component := templates.TranslationCode(data)
+	err := component.Render(context.Background(), &buf)
+	if err != nil {
+		return nil, fmt.Errorf("error rendering template: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GetTranslationData retrieves data for translations in the given path in the filesystem.
 // Assumes the filesystem contains a templates/template.go.tpl file to generate from.
 // You may extend the default template as desired.
-func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte, error) {
+func GetTranslationData(fsys fs.FS, path, pkgName string, opts ...GenerateOption) (*templates.TemplateData, error) {
 	optsMap := &generateOptions{}
 	for _, o := range opts {
 		o(optsMap)
@@ -85,7 +97,7 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 
 	loader, err := NewLanguageLoader(fsys, path)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	data := templates.TemplateData{
@@ -168,44 +180,5 @@ func Generate(fsys fs.FS, path, pkgName string, opts ...GenerateOption) ([]byte,
 
 	data.Messages = data.Translations[0].Messages // all translations have the same messages
 
-	funcMap := template.FuncMap{
-		"camelCase": func(s string) string {
-			return snaker.ForceLowerCamelIdentifier(s)
-		},
-		"pascalCase": func(s string) string {
-			return snaker.ForceCamelIdentifier(s)
-		},
-	}
-
-	var tplFsys fs.FS = templateFS
-	if optsMap.WithCustomTemplate {
-		tplFsys = fsys
-	}
-	tmpl := template.Must(template.New("template.go.tpl").Funcs(funcMap).ParseFS(tplFsys, "templates/template.go.tpl"))
-
-	if err != nil {
-		return []byte{}, fmt.Errorf("error parsing template: %w", err)
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return []byte{}, fmt.Errorf("error executing template: %w", err)
-	}
-
-	source := buf.Bytes()
-
-	source, err = format.Source(source, format.Options{})
-	if err != nil {
-		return []byte{}, fmt.Errorf("error formatting generated Go code: %w", err)
-	}
-
-	source, err = imports.Process("", source, &imports.Options{
-		FormatOnly: true,
-		Comments:   true,
-	})
-	if err != nil {
-		return []byte{}, fmt.Errorf("error applying gofumpt to generated Go code: %w", err)
-	}
-
-	return source, nil
+	return &data, nil
 }

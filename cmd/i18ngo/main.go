@@ -1,17 +1,28 @@
 package main
 
 import (
-	"context"
+	"fmt"
 	"os"
 
-	"github.com/danicc097/i18ngo/templates"
+	"github.com/danicc097/i18ngo"
 )
 
 func main() {
-	component := templates.TranslationCode(templates.TemplateData{
-		Langs: []templates.LangData{
-			{Lang: "en"},
-		},
-	})
-	component.Render(context.Background(), os.Stdout)
+	// create fs.FS from cli arg of directory --> first arg.
+	fs := os.DirFS(os.Args[1])
+	pkgName := os.Args[2]
+
+	data, err := i18ngo.GetTranslationData(fs, ".", pkgName)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintf(os.Stderr, "data: %v\n", data)
+
+	src, err := i18ngo.Generate(data)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprint(os.Stdout, string(src))
 }

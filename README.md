@@ -22,7 +22,7 @@ messages:
 The above will generate code you can use in html templates with
  `*.MyGreeting(count, name)` with the current loader. Using alongside a library
  like `a-h/templ`,
- messages also benefit from full LSP support.
+ generated messages also benefit from full LSP support.
 
 Initialize all translators at startup from the generated code:
 
