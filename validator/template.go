@@ -6,10 +6,16 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/kenshaw/snaker"
 )
 
 // ValidateTemplate checks if all variables used inside {{ .MyVar }} exist in the provided variables.
 func ValidateTemplate(tpl string, variables []string) error {
+	nvars := make([]string, 0, len(variables))
+	for _, v := range variables {
+		nvars = append(nvars, snaker.ForceLowerCamelIdentifier(v))
+	}
 	errors := []string{}
 
 	if _, err := template.New("").Parse(tpl); err != nil {

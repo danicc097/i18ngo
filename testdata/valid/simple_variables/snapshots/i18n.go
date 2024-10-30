@@ -2,79 +2,83 @@
 package translations
 
 import (
-	"bytes"
-	"html/template"
+        "bytes"
+        "html/template"
 )
 
 // Translator is implemented by all language translators.
 type Translator interface {
-	MyGreeting(age int, name string) (string, error)
+        MyGreeting(age interface{}, name string) (string, error)
 }
 
 // Lang represents available translated languages.
 type Lang string
 
 const (
-	LangEn Lang = "en"
-	LangEs Lang = "es"
+        LangEn Lang = "en"
+        LangEs Lang = "es"
 )
 
 // NewTranslators initializes all translators.
 func NewTranslators() map[Lang]Translator {
-	return map[Lang]Translator{
-		LangEn: newEn(),
-		LangEs: newEs(),
-	}
+        return map[Lang]Translator{
+                LangEn: newEn(),
+                LangEs: newEs(),
+        }
 }
 
-type en struct{}
+type en struct {
+        MyGreetingDft *template.Template
+}
 
 func newEn() *en {
-	return &en{}
+        return &en{
+                MyGreetingDft: template.Must(template.New("MyGreeting").Parse("Hello {{ .Name }}! You are {{ .Age }} years old.")),
+        }
 }
 
 // MyGreeting renders a properly translated message.
-func (t *en) MyGreeting(age int, name string) (string, error) {
-	data := struct {
-		Age  int
-		Name string
-	}{
-		Age:  age,
-		Name: name,
-	}
-	tmpl, err := template.New("message").Parse("Hello {{ .Name }}! You are {{ .Age }} years old.")
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+func (t *en) MyGreeting(age interface{}, name string) (string, error) {
+        data := struct {
+                Age  interface{}
+                Name string
+        }{
+                Age:  age,
+                Name: name,
+        }
+        var tmpl *template.Template
+        tmpl = t.MyGreetingDft
+        var buf bytes.Buffer
+        if err := tmpl.Execute(&buf, data); err != nil {
+                return "", err
+        }
+        return buf.String(), nil
 }
 
-type es struct{}
+type es struct {
+        MyGreetingDft *template.Template
+}
 
 func newEs() *es {
-	return &es{}
+        return &es{
+                MyGreetingDft: template.Must(template.New("MyGreeting").Parse("Hola {{ .Name }}! Tienes {{ .Age }} años.")),
+        }
 }
 
 // MyGreeting renders a properly translated message.
-func (t *es) MyGreeting(age int, name string) (string, error) {
-	data := struct {
-		Age  int
-		Name string
-	}{
-		Age:  age,
-		Name: name,
-	}
-	tmpl, err := template.New("message").Parse("Hola {{ .Name }}! Tienes {{ .Age }} años.")
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+func (t *es) MyGreeting(age interface{}, name string) (string, error) {
+        data := struct {
+                Age  interface{}
+                Name string
+        }{
+                Age:  age,
+                Name: name,
+        }
+        var tmpl *template.Template
+        tmpl = t.MyGreetingDft
+        var buf bytes.Buffer
+        if err := tmpl.Execute(&buf, data); err != nil {
+                return "", err
+        }
+        return buf.String(), nil
 }

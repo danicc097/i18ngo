@@ -27,10 +27,18 @@ func NewTranslators() map[Lang]Translator {
 	}
 }
 
-type en struct{}
+type en struct {
+	MyGreetingDft        *template.Template
+	MyGreetingCustom0 *template.Template
+	MyGreetingCustom1 *template.Template
+}
 
 func newEn() *en {
-	return &en{}
+	return &en{
+		MyGreetingDft:        template.Must(template.New("MyGreeting").Parse("Hello {{ .Name }}! You have {{ .Count }} messages.")),
+		MyGreetingCustom0: template.Must(template.New("MyGreetingCustom0").Parse("Hello {{ .Name }}! You have {{ .Count }} message.")),
+		MyGreetingCustom1: template.Must(template.New("MyGreetingCustom1").Parse("Hello {{ .Name }}! You have no messages.")),
+	}
 }
 
 // MyGreeting renders a properly translated message.
@@ -42,31 +50,14 @@ func (t *en) MyGreeting(count int, name string) (string, error) {
 		Count: count,
 		Name:  name,
 	}
+	var tmpl *template.Template
 	switch {
 	case count == 1:
-		tmpl, err := template.New("custom").Parse("Hello {{ .Name }}! You have {{ .Count }} message.")
-		if err != nil {
-			return "", err
-		}
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
+		tmpl = t.MyGreetingCustom0
 	case count == 0:
-		tmpl, err := template.New("custom").Parse("Hello {{ .Name }}! You have no messages.")
-		if err != nil {
-			return "", err
-		}
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
-	}
-	tmpl, err := template.New("message").Parse("Hello {{ .Name }}! You have {{ .Count }} messages.")
-	if err != nil {
-		return "", err
+		tmpl = t.MyGreetingCustom1
+	default:
+		tmpl = t.MyGreetingDft
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
@@ -75,10 +66,18 @@ func (t *en) MyGreeting(count int, name string) (string, error) {
 	return buf.String(), nil
 }
 
-type es struct{}
+type es struct {
+	MyGreetingDft        *template.Template
+	MyGreetingCustom0 *template.Template
+	MyGreetingCustom1 *template.Template
+}
 
 func newEs() *es {
-	return &es{}
+	return &es{
+		MyGreetingDft:        template.Must(template.New("MyGreeting").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensajes.")),
+		MyGreetingCustom0: template.Must(template.New("MyGreetingCustom0").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensaje.")),
+		MyGreetingCustom1: template.Must(template.New("MyGreetingCustom1").Parse("Hola {{ .Name }}! No tienes ningún mensaje.")),
+	}
 }
 
 // MyGreeting renders a properly translated message.
@@ -90,31 +89,14 @@ func (t *es) MyGreeting(count int, name string) (string, error) {
 		Count: count,
 		Name:  name,
 	}
+	var tmpl *template.Template
 	switch {
 	case count == 1:
-		tmpl, err := template.New("custom").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensaje.")
-		if err != nil {
-			return "", err
-		}
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
+		tmpl = t.MyGreetingCustom0
 	case count == 0:
-		tmpl, err := template.New("custom").Parse("Hola {{ .Name }}! No tienes ningún mensaje.")
-		if err != nil {
-			return "", err
-		}
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
-	}
-	tmpl, err := template.New("message").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensajes.")
-	if err != nil {
-		return "", err
+		tmpl = t.MyGreetingCustom1
+	default:
+		tmpl = t.MyGreetingDft
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {

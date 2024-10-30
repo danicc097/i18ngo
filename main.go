@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -130,6 +131,30 @@ func generateWithGoTemplate(data *templates.TemplateData) ([]byte, error) {
 	return source, nil
 }
 
+var tmplVarRe = regexp.MustCompile(`{{\s*\.\s*([\w\.]+)\s*}}`)
+
+func extractTemplateVariables(tplStr string) ([]string, error) {
+	matches := tmplVarRe.FindAllStringSubmatch(tplStr, -1)
+	var vars []string
+	for _, match := range matches {
+		vars = append(vars, match[1])
+	}
+	vars = unique(vars)
+	return vars, nil
+}
+
+func unique[T comparable](input []T) []T {
+	m := make(map[T]bool)
+	var result []T
+	for _, s := range input {
+		if !m[s] {
+			m[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 // GetTranslationData retrieves data for translations in the given path in the filesystem.
 // Assumes the filesystem contains a templates/template.go.tpl file to generate from.
 // You may extend the default template as desired.
@@ -173,28 +198,40 @@ func GetTranslationData(fsys fs.FS, path, pkgName string, opts ...GenerateOption
 		for _, msgID := range msgIDs {
 			msg := translations.Messages[msgID]
 			methodName := snaker.SnakeToCamel(msgID)
-			vars := []templates.VarData{}
 
-			// TODO: generate variables with interface{} type instead
-			// if var not defined.
-			// Also allow custom imports --> enables e.g. User.Username, User.Gender, etc.
+			varnames, err := extractTemplateVariables(msg.Template)
+			if err != nil {
+				return nil, fmt.Errorf("error extracting template variables: %w", err)
+			}
+			varsm := map[string]templates.VarData{}
+			for _, v := range varnames {
+				varsm[v] = templates.VarData{
+					Name:  v,
+					Type:  "interface{}",
+					Param: snaker.ForceLowerCamelIdentifier(v),
+				}
+			}
+
+			// TODO: allow custom imports --> enables e.g. User.Username, User.Gender, etc.
 			// in the future for easier custom_templates.
-			tplVars := make([]string, 0, len(msg.Variables))
 			exprVars := make([]string, 0, len(msg.Variables))
 			for name, typ := range msg.Variables {
-				vars = append(vars, templates.VarData{
+				varsm[name] = templates.VarData{
 					Name:  name,
 					Type:  typ,
 					Param: snaker.ForceLowerCamelIdentifier(name),
-				})
-				tplVars = append(tplVars, name)
+				}
 				exprVars = append(exprVars, snaker.ForceLowerCamelIdentifier(name))
+			}
+			vars := make([]templates.VarData, 0, len(varsm))
+			for _, v := range varsm {
+				vars = append(vars, v)
 			}
 			sort.Slice(vars, func(i, j int) bool {
 				return vars[i].Name < vars[j].Name
 			})
 
-			if err := validator.ValidateTemplate(msg.Template, tplVars); err != nil {
+			if err := validator.ValidateTemplate(msg.Template, varnames); err != nil {
 				return nil, fmt.Errorf("error validating template %q: %w", msg.Template, err)
 			}
 

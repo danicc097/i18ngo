@@ -3,4 +3,3 @@ messages:
     template: "Hello {{ .Name }}! You are {{ .Age }} years old."
     variables:
       Name: string
-      Age: int
