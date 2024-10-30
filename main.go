@@ -2,14 +2,16 @@ package i18ngo
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"sort"
 	"strings"
 
 	"golang.org/x/text/language"
+	"golang.org/x/tools/imports"
+	"mvdan.cc/gofumpt/format"
 
 	"github.com/danicc097/i18ngo/templates"
 	"github.com/danicc097/i18ngo/validator"
@@ -76,14 +78,56 @@ func Generate(data *templates.TemplateData) ([]byte, error) {
 	if data == nil {
 		return nil, fmt.Errorf("data must be non-nil")
 	}
-	var buf bytes.Buffer
-	component := templates.TranslationCode(data)
+	// gotempl
+	/* var buf bytes.Buffer
+	 component := templates.TranslationCode(data)
 	err := component.Render(context.Background(), &buf)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering template: %w", err)
+	} */
+
+	src, err := generateWithGoTemplate(data)
+	if err != nil {
+		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return src, nil
+}
+
+func generateWithGoTemplate(data *templates.TemplateData) ([]byte, error) {
+	funcMap := template.FuncMap{
+		"camelCase": func(s string) string {
+			return snaker.ForceLowerCamelIdentifier(s)
+		},
+		"pascalCase": func(s string) string {
+			return snaker.ForceCamelIdentifier(s)
+		},
+	}
+
+	var tplFsys fs.FS = templateFS
+	tmpl := template.Must(template.New("template.go.tpl").Funcs(funcMap).ParseFS(tplFsys, "templates/template.go.tpl"))
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return []byte{}, fmt.Errorf("error executing template: %w", err)
+	}
+
+	source := buf.Bytes()
+
+	source, err := format.Source(source, format.Options{})
+	if err != nil {
+		return []byte{}, fmt.Errorf("error formatting generated Go code: %w", err)
+	}
+
+	source, err = imports.Process("", source, &imports.Options{
+		FormatOnly: true,
+		Comments:   true,
+	})
+	if err != nil {
+		return []byte{}, fmt.Errorf("error applying gofumpt to generated Go code: %w", err)
+	}
+
+	return source, nil
 }
 
 // GetTranslationData retrieves data for translations in the given path in the filesystem.
