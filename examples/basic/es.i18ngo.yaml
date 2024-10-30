@@ -1,0 +1,11 @@
+messages:
+  my_greeting:
+    template: "Hola {{ .Name }}! Tienes {{ .Count }} mensajes."
+    variables:
+      Name: string
+      Count: int
+    custom_templates:
+      - expression: "count == 1"
+        template: "Hola {{ .Name }}! Tienes {{ .Count }} mensaje."
+      - expression: "count == 0"
+        template: "Hola {{ .Name }}! No tienes ningún mensaje."

@@ -17,8 +17,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Fprintf(os.Stderr, "data: %v\n", data)
-
 	src, err := i18ngo.Generate(data)
 	if err != nil {
 		panic(err)
