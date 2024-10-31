@@ -3,8 +3,13 @@
 package {{ .PkgName }}
 
 import (
+    "fmt"
     "bytes"
     "html/template"
+    "time"
+
+    "github.com/kofalt/go-memoize"
+    "github.com/patrickmn/go-cache"
 )
 
 // Translator is implemented by all language translators.
@@ -22,6 +27,38 @@ const (
     Lang{{.CamelLang}} Lang = "{{.Lang}}"
 {{- end }}
 )
+
+
+// MemoizedTranslator wraps a Translator with a cache.
+type MemoizedTranslator struct {
+    translator Translator
+    cache      *memoize.Memoizer
+}
+
+// NewMemoizedTranslator initializes a memoized Translator.
+func NewMemoizedTranslator(translator Translator) *MemoizedTranslator {
+    cache := memoize.NewMemoizer(cache.NoExpiration, 1*time.Hour)
+    return &MemoizedTranslator{
+        translator: translator,
+        cache:      cache,
+    }
+}
+
+{{ range .Messages }}
+// {{.MethodName}} checks the cache or computes the message if not already cached.
+func (m *MemoizedTranslator) {{.MethodName}}({{.Args}}) (string, error) {
+    cacheKey := fmt.Sprintf("{{.CamelLang}}:{{.MethodName}}:{{- range .Vars }}%v:{{- end }}", {{- range .Vars }}{{- .Param}}, {{- end }})
+
+    result, _, _ := m.cache.Memoize(cacheKey, func() (interface{}, error) {
+        return m.translator.{{.MethodName}}({{- range .Vars }}{{- .Param}}, {{- end }})
+    })
+
+    if err, ok := result.(error); ok {
+        return "", err
+    }
+    return result.(string), nil
+}
+{{- end }}
 
 // NewTranslators initializes all translators.
 func NewTranslators() map[Lang]Translator {

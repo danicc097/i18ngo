@@ -3,7 +3,12 @@ package translations
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
+	"time"
+
+	"github.com/kofalt/go-memoize"
+	"github.com/patrickmn/go-cache"
 )
 
 // Translator is implemented by all language translators.
@@ -19,6 +24,35 @@ const (
 	LangEs Lang = "es"
 )
 
+// MemoizedTranslator wraps a Translator with a cache.
+type MemoizedTranslator struct {
+	translator Translator
+	cache      *memoize.Memoizer
+}
+
+// NewMemoizedTranslator initializes a memoized Translator.
+func NewMemoizedTranslator(translator Translator) *MemoizedTranslator {
+	cache := memoize.NewMemoizer(cache.NoExpiration, 1*time.Hour)
+	return &MemoizedTranslator{
+		translator: translator,
+		cache:      cache,
+	}
+}
+
+// MyGreeting checks the cache or computes the message if not already cached.
+func (m *MemoizedTranslator) MyGreeting(count int, name string) (string, error) {
+	cacheKey := fmt.Sprintf("En:MyGreeting:%v:%v:", count, name)
+
+	result, _, _ := m.cache.Memoize(cacheKey, func() (interface{}, error) {
+		return m.translator.MyGreeting(count, name)
+	})
+
+	if err, ok := result.(error); ok {
+		return "", err
+	}
+	return result.(string), nil
+}
+
 // NewTranslators initializes all translators.
 func NewTranslators() map[Lang]Translator {
 	return map[Lang]Translator{
@@ -28,14 +62,14 @@ func NewTranslators() map[Lang]Translator {
 }
 
 type en struct {
-	MyGreetingDft        *template.Template
+	MyGreetingDft     *template.Template
 	MyGreetingCustom0 *template.Template
 	MyGreetingCustom1 *template.Template
 }
 
 func newEn() *en {
 	return &en{
-		MyGreetingDft:        template.Must(template.New("MyGreeting").Parse("Hello {{ .Name }}! You have {{ .Count }} messages.")),
+		MyGreetingDft:     template.Must(template.New("MyGreeting").Parse("Hello {{ .Name }}! You have {{ .Count }} messages.")),
 		MyGreetingCustom0: template.Must(template.New("MyGreetingCustom0").Parse("Hello {{ .Name }}! You have {{ .Count }} message.")),
 		MyGreetingCustom1: template.Must(template.New("MyGreetingCustom1").Parse("Hello {{ .Name }}! You have no messages.")),
 	}
@@ -67,14 +101,14 @@ func (t *en) MyGreeting(count int, name string) (string, error) {
 }
 
 type es struct {
-	MyGreetingDft        *template.Template
+	MyGreetingDft     *template.Template
 	MyGreetingCustom0 *template.Template
 	MyGreetingCustom1 *template.Template
 }
 
 func newEs() *es {
 	return &es{
-		MyGreetingDft:        template.Must(template.New("MyGreeting").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensajes.")),
+		MyGreetingDft:     template.Must(template.New("MyGreeting").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensajes.")),
 		MyGreetingCustom0: template.Must(template.New("MyGreetingCustom0").Parse("Hola {{ .Name }}! Tienes {{ .Count }} mensaje.")),
 		MyGreetingCustom1: template.Must(template.New("MyGreetingCustom1").Parse("Hola {{ .Name }}! No tienes ningún mensaje.")),
 	}

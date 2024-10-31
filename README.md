@@ -35,8 +35,11 @@ err := i18ngo.Generate(fsys, "path to *.i18ngo.yaml dir", pkgName)
 
 // assuming your codegen was saved to an i18ngen package
 tt := i18ngen.NewTranslators()
+// you can also use the generated memoized translator
+// tt = NewMemoizedTranslator(tt)
 
 // lang may come from context, etc. implementation is up to the consumer
 t := tt[lang]
 t.MyGreeting(count, name)
+
 ```
